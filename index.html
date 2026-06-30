@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ahorros Mundial</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+</head>
+<body>
+
+  <div id="toast-container"></div>
+
+  <!-- Loading overlay -->
+  <div id="loading-overlay" class="loading-overlay show">
+    <div class="loading-spinner"></div>
+    <span>Cargando...</span>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="header-brand">
+        <span>💰</span> Ahorros Mundial
+      </div>
+      <div class="header-actions">
+        <span id="user-email" class="user-email"></span>
+        <button id="logout-btn" class="btn btn-ghost btn-sm">Salir</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Nav -->
+  <nav class="nav-tabs">
+    <div class="nav-tabs-inner">
+      <button class="nav-tab active" data-section="section-dashboard">📊 Resumen</button>
+      <button class="nav-tab" data-section="section-transactions">💸 Transacciones</button>
+      <button class="nav-tab" data-section="section-comparison">📈 Comparativa</button>
+      <button class="nav-tab" data-section="section-settings">⚙️ Ajustes</button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="app-container">
+
+    <!-- ========== DASHBOARD ========== -->
+    <section id="section-dashboard" class="section active">
+
+      <!-- Month selector -->
+      <div class="month-bar">
+        <div class="month-nav">
+          <button id="prev-month" aria-label="Mes anterior">‹</button>
+          <span class="month-label">—</span>
+          <button id="next-month" aria-label="Mes siguiente">›</button>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-card income">
+          <div class="stat-label">Ingresos</div>
+          <div id="total-income" class="stat-value positive">$0</div>
+        </div>
+        <div class="stat-card expense">
+          <div class="stat-label">Gastos</div>
+          <div id="total-expense" class="stat-value negative">$0</div>
+        </div>
+        <div class="stat-card balance">
+          <div class="stat-label">Balance (ahorro)</div>
+          <div id="total-balance" class="stat-value">$0</div>
+        </div>
+        <div class="stat-card goal">
+          <div class="stat-label">Meta de ahorro</div>
+          <div id="goal-pct" class="stat-value">0%</div>
+          <div class="progress-wrap">
+            <div id="goal-bar" class="progress-bar" style="width:0%"></div>
+          </div>
+          <div class="stat-sub">Ahorro: <span id="goal-balance-val">$0</span></div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-grid">
+        <div class="card">
+          <div class="card-title">Gastos por categoría</div>
+          <div class="chart-container">
+            <canvas id="pie-chart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Resumen del mes</div>
+          <div class="chart-container">
+            <canvas id="bar-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== TRANSACTIONS ========== -->
+    <section id="section-transactions" class="section">
+
+      <!-- Add transaction form -->
+      <div class="card">
+        <div class="card-title">Nueva transacción</div>
+        <form id="tx-form" novalidate>
+          <div class="tx-form-grid">
+            <div class="form-group">
+              <label for="tx-date">Fecha</label>
+              <input type="date" id="tx-date" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="tx-type">Tipo</label>
+              <select id="tx-type" class="form-control" required>
+                <option value="">Seleccionar...</option>
+                <option value="ingreso">Ingreso</option>
+                <option value="gasto">Gasto</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="tx-category">Categoría</label>
+              <select id="tx-category" class="form-control">
+                <option value="">Sin categoría</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="tx-amount">Monto</label>
+              <input type="number" id="tx-amount" class="form-control"
+                     placeholder="0" min="0.01" step="any" required>
+            </div>
+            <div class="form-group two">
+              <label for="tx-desc">Descripción <span style="color:var(--gray-400);font-size:.8rem">(opcional)</span></label>
+              <input type="text" id="tx-desc" class="form-control"
+                     placeholder="Ej: Supermercado La 14" maxlength="200">
+            </div>
+          </div>
+          <div style="margin-top:.75rem">
+            <button type="submit" id="tx-submit-btn" class="btn btn-success">
+              + Agregar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Filters -->
+      <div class="card">
+        <div class="card-title">Transacciones <span id="tx-count"></span></div>
+        <div class="filters-bar">
+          <select id="filter-type" class="form-control">
+            <option value="">Todos los tipos</option>
+            <option value="ingreso">Ingresos</option>
+            <option value="gasto">Gastos</option>
+          </select>
+          <select id="filter-category" class="form-control">
+            <option value="">Todas las categorías</option>
+          </select>
+          <input type="date" id="filter-date-from" class="form-control" placeholder="Desde">
+          <input type="date" id="filter-date-to"   class="form-control" placeholder="Hasta">
+          <button id="filter-clear" class="btn btn-ghost btn-sm">Limpiar</button>
+        </div>
+
+        <div class="tx-table-wrap">
+          <table class="tx-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Categoría</th>
+                <th>Monto</th>
+                <th>Descripción</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tx-tbody">
+              <tr><td colspan="6"><div class="empty-state"><div class="icon">💸</div><p>Sin transacciones</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== COMPARISON ========== -->
+    <section id="section-comparison" class="section">
+      <div class="card">
+        <div class="card-title">Últimos 6 meses</div>
+        <div class="chart-container" style="height:280px;margin-bottom:1.5rem">
+          <canvas id="comparison-chart"></canvas>
+        </div>
+        <div class="comparison-row" style="font-size:.75rem;font-weight:600;color:var(--gray-500);text-transform:uppercase;padding-bottom:.25rem">
+          <div>Mes</div>
+          <div class="num-col">Ingresos</div>
+          <div class="num-col">Gastos</div>
+          <div class="num-col">Ahorro</div>
+        </div>
+        <div id="comparison-tbody" class="comparison-grid"></div>
+      </div>
+    </section>
+
+    <!-- ========== SETTINGS ========== -->
+    <section id="section-settings" class="section">
+
+      <!-- Goal -->
+      <div class="card goal-card">
+        <div class="card-title">Meta de ahorro mensual</div>
+        <p style="color:var(--gray-500);font-size:.875rem;margin-bottom:1rem">
+          Establece cuánto quieres ahorrar este mes. La barra de progreso en el resumen te mostrará qué tan cerca estás.
+        </p>
+        <div class="goal-form">
+          <input type="number" id="goal-amount" class="form-control"
+                 placeholder="Ej: 500000" min="1" step="any">
+          <button id="goal-save-btn" class="btn btn-primary">Guardar meta</button>
+        </div>
+      </div>
+
+      <!-- Categories -->
+      <div class="card">
+        <div class="card-title">Categorías</div>
+        <div id="category-list" class="category-list"></div>
+        <div style="display:flex;gap:.625rem;margin-top:.75rem">
+          <input type="text" id="new-category-input" class="form-control"
+                 placeholder="Nueva categoría..." maxlength="50">
+          <button id="add-category-btn" class="btn btn-outline">+ Agregar</button>
+        </div>
+      </div>
+
+      <!-- Account -->
+      <div class="card">
+        <div class="card-title">Cuenta</div>
+        <p style="color:var(--gray-500);font-size:.875rem;margin-bottom:1rem">
+          Conectado como: <strong id="settings-email"></strong>
+        </p>
+        <button onclick="document.getElementById('logout-btn').click()" class="btn btn-danger btn-sm">
+          Cerrar sesión
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Edit Modal -->
+  <div id="tx-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title">Editar transacción</span>
+        <button class="modal-close" aria-label="Cerrar">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="modal-date">Fecha</label>
+          <input type="date" id="modal-date" class="form-control">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="modal-type">Tipo</label>
+            <select id="modal-type" class="form-control">
+              <option value="ingreso">Ingreso</option>
+              <option value="gasto">Gasto</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="modal-category">Categoría</label>
+            <select id="modal-category" class="form-control">
+              <option value="">Sin categoría</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="modal-amount">Monto</label>
+          <input type="number" id="modal-amount" class="form-control" min="0.01" step="any">
+        </div>
+        <div class="form-group">
+          <label for="modal-desc">Descripción</label>
+          <input type="text" id="modal-desc" class="form-control" maxlength="200">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-cancel" class="btn btn-ghost">Cancelar</button>
+        <button id="modal-save" class="btn btn-primary">Guardar cambios</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Supabase + Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/app.js"></script>
+
+  <script>
+    // Patch modal close button (after app.js loads)
+    document.querySelector('.modal-close').addEventListener('click', closeModal);
+    // Show email in settings
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        const emailEl = document.getElementById('settings-email');
+        if (emailEl && currentUser) emailEl.textContent = currentUser.email;
+      }, 800);
+    });
+  </script>
+</body>
+</html>
