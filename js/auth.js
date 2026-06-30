@@ -102,7 +102,12 @@ function validateEmail(email) {
 function markError(id, msg) {
   const el = document.getElementById(id);
   el.classList.add('error');
-  const errEl = el.nextElementSibling;
+  // Support both flat layout and wrapped layout (input inside auth-input-row)
+  let errEl = el.nextElementSibling;
+  if (!errEl || !errEl.classList.contains('error-msg')) {
+    errEl = el.closest('.auth-field')?.querySelector('.error-msg')
+          || el.parentElement?.nextElementSibling;
+  }
   if (errEl && errEl.classList.contains('error-msg')) {
     errEl.textContent = msg;
     errEl.classList.add('show');

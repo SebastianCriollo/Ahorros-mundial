@@ -2,82 +2,209 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ahorros Mundial — Iniciar sesión</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Ahorros Mundial</title>
   <link rel="stylesheet" href="css/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
 </head>
-<body class="login-page">
+<body class="auth-body">
 
-  <div id="toast-container"></div>
+<div id="toast-container"></div>
 
-  <div class="login-card">
-    <div class="login-logo">
-      <span class="icon">💰</span>
-      <h1>Ahorros Mundial</h1>
-      <p>Controla tus finanzas personales</p>
-    </div>
+<!-- ══════════════ SPLASH ══════════════ -->
+<div id="splash-screen" class="splash">
 
-    <div class="tabs">
-      <button class="tab-btn active" data-tab="login-panel">Iniciar sesión</button>
-      <button class="tab-btn" data-tab="signup-panel">Crear cuenta</button>
-    </div>
-
-    <!-- Login -->
-    <div id="login-panel" class="tab-panel active">
-      <form id="login-form" novalidate>
-        <div class="form-group">
-          <label for="login-email">Email</label>
-          <input type="email" id="login-email" class="form-control"
-                 placeholder="tu@email.com" autocomplete="email" required>
-          <span class="error-msg"></span>
-        </div>
-        <div class="form-group">
-          <label for="login-password">Contraseña</label>
-          <input type="password" id="login-password" class="form-control"
-                 placeholder="••••••••" autocomplete="current-password" required>
-          <span class="error-msg"></span>
-        </div>
-        <button type="submit" class="btn btn-primary btn-block" style="margin-top:.5rem">
-          <span class="spinner"></span>
-          Entrar
-        </button>
-      </form>
-    </div>
-
-    <!-- Signup -->
-    <div id="signup-panel" class="tab-panel">
-      <form id="signup-form" novalidate>
-        <div class="form-group">
-          <label for="signup-email">Email</label>
-          <input type="email" id="signup-email" class="form-control"
-                 placeholder="tu@email.com" autocomplete="email" required>
-          <span class="error-msg"></span>
-        </div>
-        <div class="form-group">
-          <label for="signup-password">Contraseña</label>
-          <input type="password" id="signup-password" class="form-control"
-                 placeholder="Mínimo 6 caracteres" autocomplete="new-password" required>
-          <span class="error-msg"></span>
-        </div>
-        <div class="form-group">
-          <label for="signup-confirm">Confirmar contraseña</label>
-          <input type="password" id="signup-confirm" class="form-control"
-                 placeholder="Repite la contraseña" autocomplete="new-password" required>
-          <span class="error-msg"></span>
-        </div>
-        <button type="submit" class="btn btn-primary btn-block" style="margin-top:.5rem">
-          <span class="spinner"></span>
-          Crear cuenta
-        </button>
-      </form>
-    </div>
+  <!-- Fondo coral con patrón abstracto -->
+  <div class="splash-coral">
+    <svg class="auth-bg-pattern" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 600" preserveAspectRatio="xMidYMid slice">
+      <path d="M-30,60 C40,-30 210,10 200,110 C190,210 80,260 -10,220 C-100,180 -100,100 -30,60 Z"
+            fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1.8"/>
+      <path d="M210,20 C320,-60 470,30 450,150 C430,270 310,310 220,270 C130,230 120,130 180,70 C200,48 185,85 210,20 Z"
+            fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1.8"/>
+      <path d="M40,290 C110,220 260,240 275,325 C290,410 200,480 105,460 C10,440 -20,360 40,290 Z"
+            fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="1.5"/>
+      <path d="M260,400 C350,330 480,410 465,520 C450,630 340,670 260,640 C180,610 155,530 200,470 C222,440 220,465 260,400 Z"
+            fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1.5"/>
+      <!-- Sparkles -->
+      <g fill="rgba(255,255,255,0.55)" stroke="rgba(255,255,255,0.55)" stroke-linecap="round">
+        <path d="M336,95 L336,79 M328,87 L344,87" stroke-width="1.6"/>
+        <path d="M336,91 L336,83 M332,87 L340,87" stroke-width="1.6"/>
+        <path d="M70,310 L70,298 M64,304 L76,304" stroke-width="1.4"/>
+        <path d="M70,307 L70,301 M67,304 L73,304" stroke-width="1.4"/>
+        <path d="M300,200 L300,191 M295.5,195.5 L304.5,195.5" stroke-width="1.2"/>
+        <path d="M155,155 L155,149 M152,152 L158,152" stroke-width="1"/>
+      </g>
+    </svg>
   </div>
 
-  <!-- Supabase JS SDK -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/config.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/auth.js"></script>
+  <!-- Sección blanca inferior -->
+  <div class="splash-white">
+    <div class="splash-content">
+      <h1 class="splash-title">Welcome</h1>
+      <p class="splash-sub">Controla tus finanzas personales fácilmente</p>
+    </div>
+    <div class="splash-footer">
+      <button id="splash-btn" class="splash-continue">
+        Continue
+        <span class="splash-arrow">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <circle cx="10" cy="10" r="10" fill="#F07272"/>
+            <path d="M8 6l4 4-4 4" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ AUTH SCREEN ══════════════ -->
+<div id="auth-screen" class="auth-screen auth-hidden">
+
+  <!-- Sección coral superior -->
+  <div class="auth-top">
+    <svg class="auth-bg-pattern" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 390 340" preserveAspectRatio="xMidYMid slice">
+      <path d="M-30,30 C40,-40 200,0 200,90 C200,180 90,220 -10,190 C-110,160 -100,100 -30,30 Z"
+            fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1.8"/>
+      <path d="M200,10 C300,-50 450,30 440,130 C430,230 310,270 230,240 C150,210 130,130 180,70 C200,45 190,75 200,10 Z"
+            fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="1.8"/>
+      <path d="M50,200 C120,140 260,160 275,240 C290,320 200,380 105,358 C10,336 -15,265 50,200 Z"
+            fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1.5"/>
+      <g fill="rgba(255,255,255,0.55)" stroke="rgba(255,255,255,0.55)" stroke-linecap="round">
+        <path d="M330,85 L330,69 M322,77 L338,77" stroke-width="1.6"/>
+        <path d="M330,81 L330,73 M326,77 L334,77" stroke-width="1.6"/>
+        <path d="M62,170 L62,160 M57,165 L67,165" stroke-width="1.3"/>
+        <path d="M62,168 L62,162 M59,165 L65,165" stroke-width="1.3"/>
+        <path d="M200,120 L200,113 M196.5,116.5 L203.5,116.5" stroke-width="1.1"/>
+      </g>
+    </svg>
+  </div>
+
+  <!-- Tarjeta blanca con formulario -->
+  <div class="auth-card">
+
+    <!-- ─── LOGIN ─── -->
+    <div id="login-panel" class="auth-panel tab-panel active">
+      <h2 class="auth-title">Sign in</h2>
+
+      <form id="login-form" novalidate>
+        <div class="auth-field">
+          <span class="auth-label">Email</span>
+          <div class="auth-input-row">
+            <svg class="auth-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+            </svg>
+            <input type="email" id="login-email" class="auth-input"
+                   placeholder="demo@email.com" autocomplete="email" required>
+          </div>
+          <span class="error-msg"></span>
+        </div>
+
+        <div class="auth-field">
+          <span class="auth-label">Password</span>
+          <div class="auth-input-row">
+            <svg class="auth-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="login-password" class="auth-input"
+                   placeholder="enter your password" autocomplete="current-password" required>
+          </div>
+          <span class="error-msg"></span>
+        </div>
+
+        <div class="auth-remember-row">
+          <label class="auth-check">
+            <input type="checkbox"> Remember Me
+          </label>
+        </div>
+
+        <button type="submit" class="auth-btn">
+          <span class="spinner"></span>
+          Login
+        </button>
+      </form>
+
+      <p class="auth-switch">
+        Don't have an Account?
+        <button class="auth-switch-link" onclick="switchPanel('signup-panel')">Sign up</button>
+      </p>
+    </div>
+
+    <!-- ─── SIGN UP ─── -->
+    <div id="signup-panel" class="auth-panel tab-panel">
+      <h2 class="auth-title">Sign up</h2>
+
+      <form id="signup-form" novalidate>
+        <div class="auth-field">
+          <span class="auth-label">Email</span>
+          <div class="auth-input-row">
+            <svg class="auth-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+            </svg>
+            <input type="email" id="signup-email" class="auth-input"
+                   placeholder="demo@email.com" autocomplete="email" required>
+          </div>
+          <span class="error-msg"></span>
+        </div>
+
+        <div class="auth-field">
+          <span class="auth-label">Password</span>
+          <div class="auth-input-row">
+            <svg class="auth-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="signup-password" class="auth-input"
+                   placeholder="enter your password" autocomplete="new-password" required>
+          </div>
+          <span class="error-msg"></span>
+        </div>
+
+        <div class="auth-field">
+          <span class="auth-label">Confirm Password</span>
+          <div class="auth-input-row">
+            <svg class="auth-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <input type="password" id="signup-confirm" class="auth-input"
+                   placeholder="Confirm your password" autocomplete="new-password" required>
+          </div>
+          <span class="error-msg"></span>
+        </div>
+
+        <button type="submit" class="auth-btn">
+          <span class="spinner"></span>
+          Create Account
+        </button>
+      </form>
+
+      <p class="auth-switch">
+        Already have an Account!
+        <button class="auth-switch-link" onclick="switchPanel('login-panel')">Login</button>
+      </p>
+    </div>
+
+  </div><!-- /auth-card -->
+</div><!-- /auth-screen -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script>
+  // Splash → Auth
+  document.getElementById('splash-btn').addEventListener('click', () => {
+    const splash = document.getElementById('splash-screen');
+    splash.style.transition = 'opacity 0.35s ease';
+    splash.style.opacity = '0';
+    setTimeout(() => {
+      splash.style.display = 'none';
+      document.getElementById('auth-screen').classList.remove('auth-hidden');
+    }, 350);
+  });
+
+  function switchPanel(id) {
+    document.querySelectorAll('.auth-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+</script>
+<script src="js/auth.js"></script>
 </body>
 </html>
