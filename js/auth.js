@@ -19,6 +19,8 @@ async function handleLogin(email, password) {
 async function handleSignup(email, password) {
   const { data, error } = await db.auth.signUp({ email, password });
   if (error) throw error;
+  // Supabase a veces retorna sin sesión ni error cuando el email requiere confirmación
+  if (!data.session && !data.user) throw { message: 'signup_no_session' };
   return data;
 }
 
@@ -56,7 +58,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       await handleLogin(email, password);
       window.location.replace('index.html');
     } catch (err) {
-      toast(friendlyError(err.message), 'error');
+      const msg = err?.message || err?.error_description || JSON.stringify(err) || '';
+      toast(friendlyError(msg), 'error');
     } finally {
       btn.disabled = false;
       spinner.classList.remove('show');
@@ -84,10 +87,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (data.session) {
         window.location.replace('index.html');
       } else {
-        toast('¡Cuenta creada! Revisa tu email para confirmar.', 'success');
+        toast('Cuenta creada. Revisa tu email para confirmar.', 'success');
       }
     } catch (err) {
-      toast(friendlyError(err.message), 'error');
+      const msg = err?.message || err?.error_description || JSON.stringify(err) || '';
+      toast(friendlyError(msg), 'error');
     } finally {
       btn.disabled = false;
       spinner.classList.remove('show');
@@ -120,9 +124,14 @@ function clearErrors() {
 }
 
 function friendlyError(msg) {
-  if (msg.includes('Invalid login')) return 'Email o contraseña incorrectos';
-  if (msg.includes('already registered')) return 'Este email ya está registrado';
-  if (msg.includes('Email not confirmed')) return 'Confirma tu email primero';
-  if (msg.includes('Password should')) return 'La contraseña debe tener al menos 6 caracteres';
-  return msg;
+  if (!msg || typeof msg !== 'string') return 'Ocurrió un error inesperado. Intenta de nuevo.';
+  if (msg.includes('Invalid login') || msg.includes('invalid_credentials')) return 'Email o contraseña incorrectos';
+  if (msg.includes('already registered') || msg.includes('User already registered')) return 'Este email ya está registrado. Inicia sesión.';
+  if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) return 'Debes confirmar tu email antes de entrar';
+  if (msg.includes('Password should') || msg.includes('password')) return 'La contraseña debe tener al menos 6 caracteres';
+  if (msg.includes('signups are disabled') || msg.includes('Signups not allowed')) return 'El registro está desactivado en Supabase. Activa el proveedor Email.';
+  if (msg.includes('signup_no_session')) return 'Revisa tu email y confirma tu cuenta para continuar';
+  if (msg.includes('rate limit') || msg.includes('too many')) return 'Demasiados intentos. Espera un momento.';
+  if (msg.includes('network') || msg.includes('fetch')) return 'Error de conexión. Revisa tu internet.';
+  return 'Error: ' + msg;
 }
