@@ -254,6 +254,20 @@ a:hover { text-decoration: underline; }
 .auth-btn:active { transform: scale(.98); }
 .auth-btn:disabled { opacity: .65; cursor: not-allowed; }
 
+/* ── Ojo mostrar/ocultar contraseña ── */
+.eye-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--gray-400);
+  padding: 0 .1rem;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: color var(--transition);
+}
+.eye-btn:hover { color: var(--coral); }
+
 /* ── Switch link ── */
 .auth-switch {
   text-align: center;
