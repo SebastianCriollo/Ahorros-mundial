@@ -124,14 +124,15 @@ function clearErrors() {
 }
 
 function friendlyError(msg) {
-  if (!msg || typeof msg !== 'string') return 'Ocurrió un error inesperado. Intenta de nuevo.';
+  if (!msg || typeof msg !== 'string' || msg === '{}' || msg.trim() === '')
+    return 'Supabase tiene un problema técnico ahora mismo. Espera unos minutos e intenta de nuevo.';
   if (msg.includes('Invalid login') || msg.includes('invalid_credentials')) return 'Email o contraseña incorrectos';
   if (msg.includes('already registered') || msg.includes('User already registered')) return 'Este email ya está registrado. Inicia sesión.';
   if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) return 'Debes confirmar tu email antes de entrar';
-  if (msg.includes('Password should') || msg.includes('password')) return 'La contraseña debe tener al menos 6 caracteres';
-  if (msg.includes('signups are disabled') || msg.includes('Signups not allowed')) return 'El registro está desactivado en Supabase. Activa el proveedor Email.';
+  if (msg.includes('Password should') || msg.includes('weak')) return 'La contraseña debe tener al menos 6 caracteres';
+  if (msg.includes('signups are disabled') || msg.includes('Signups not allowed')) return 'El registro está desactivado. Revisa la configuración de Supabase.';
   if (msg.includes('signup_no_session')) return 'Revisa tu email y confirma tu cuenta para continuar';
   if (msg.includes('rate limit') || msg.includes('too many')) return 'Demasiados intentos. Espera un momento.';
-  if (msg.includes('network') || msg.includes('fetch')) return 'Error de conexión. Revisa tu internet.';
-  return 'Error: ' + msg;
+  if (msg.includes('network') || msg.includes('fetch') || msg.includes('Failed')) return 'Error de conexión. Revisa tu internet.';
+  return msg;
 }
