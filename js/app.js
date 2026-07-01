@@ -3,26 +3,28 @@ const { createClient } = supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ── State ──────────────────────────────────────────────────
-let currentUser = null;
-let currentYear = new Date().getFullYear();
-let currentMonth = new Date().getMonth() + 1;
-let allCategories = [];
+let currentUser    = null;
+let currentYear    = new Date().getFullYear();
+let currentMonth   = new Date().getMonth() + 1;
+let allCategories  = [];
 let allTransactions = [];
-let editingTxId = null;
-let chartPie = null;
-let chartBar = null;
+let editingTxId    = null;
+let chartPie       = null;
+let chartBar       = null;
 let chartComparison = null;
+let chartSparkline  = null;
 
 // ── Boot ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   initChartDefaults();
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.color       = '#94a3b8';
+    Chart.defaults.borderColor = 'rgba(255,255,255,0.08)';
+  }
   showLoading(true);
 
   const { data: { session } } = await db.auth.getSession();
-  if (!session) {
-    window.location.replace('login.html');
-    return;
-  }
+  if (!session) { window.location.replace('login.html'); return; }
   currentUser = session.user;
 
   document.getElementById('user-email').textContent = currentUser.email;
@@ -44,9 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 });
 
-async function handleLogout() {
-  await db.auth.signOut();
-}
+async function handleLogout() { await db.auth.signOut(); }
 
 function showLoading(show) {
   document.getElementById('loading-overlay').classList.toggle('show', show);
@@ -57,9 +57,9 @@ function setupNavigation() {
   document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.dk-section').forEach(s => s.classList.remove('active'));
       tab.classList.add('active');
-      document.getElementById(tab.dataset.section).classList.add('active');
+      document.getElementById(tab.dataset.section)?.classList.add('active');
     });
   });
 }
@@ -69,14 +69,12 @@ function setupMonthNav() {
   document.getElementById('prev-month').addEventListener('click', () => {
     const p = prevMonth(currentYear, currentMonth);
     currentYear = p.year; currentMonth = p.month;
-    updateMonthLabels();
-    refreshAll();
+    updateMonthLabels(); refreshAll();
   });
   document.getElementById('next-month').addEventListener('click', () => {
     const n = nextMonth(currentYear, currentMonth);
     currentYear = n.year; currentMonth = n.month;
-    updateMonthLabels();
-    refreshAll();
+    updateMonthLabels(); refreshAll();
   });
   updateMonthLabels();
 }
@@ -89,10 +87,7 @@ function updateMonthLabels() {
 
 // ── Data Loading ───────────────────────────────────────────
 async function loadCategories() {
-  const { data, error } = await db
-    .from('categorias')
-    .select('*')
-    .order('nombre');
+  const { data, error } = await db.from('categorias').select('*').order('nombre');
   if (error) { showToast('Error cargando categorías', 'error'); return; }
   allCategories = data;
   populateCategorySelects();
@@ -114,14 +109,11 @@ async function loadTransactions() {
 async function loadGoal() {
   const now = new Date();
   const { data } = await db
-    .from('metas_ahorro')
-    .select('*')
+    .from('metas_ahorro').select('*')
     .eq('anio', now.getFullYear())
     .eq('mes', now.getMonth() + 1)
     .maybeSingle();
-  if (data) {
-    document.getElementById('goal-amount').value = data.monto;
-  }
+  if (data) document.getElementById('goal-amount').value = data.monto;
 }
 
 async function refreshAll() {
@@ -129,6 +121,8 @@ async function refreshAll() {
   applyFiltersAndRender();
   renderCharts();
   renderSummary();
+  renderRecentTransactions();
+  renderSparkline();
   await loadComparisonData();
 }
 
@@ -140,34 +134,40 @@ function renderSummary() {
 
   document.getElementById('total-income').textContent  = formatCurrency(income);
   document.getElementById('total-expense').textContent = formatCurrency(expense);
-  document.getElementById('total-balance').textContent = formatCurrency(balance);
-  document.getElementById('total-balance').className   = 'stat-value ' + (balance >= 0 ? 'positive' : 'negative');
 
-  // Goal progress
+  const balEl  = document.getElementById('total-balance');
+  const balStr = formatCurrency(balance);
+  balEl.dataset.real = balStr;
+  if (document.getElementById('eye-icon-open')?.style.display !== 'none') {
+    balEl.textContent = balStr;
+  }
+
   const goalVal = Number(document.getElementById('goal-amount').value) || 0;
   const pct     = goalVal > 0 ? Math.min((balance / goalVal) * 100, 100) : 0;
   const pctEl   = document.getElementById('goal-pct');
   const bar     = document.getElementById('goal-bar');
-  pctEl.textContent = `${Math.round(pct)}%`;
-  bar.style.width   = `${Math.max(0, pct)}%`;
-  bar.className     = 'progress-bar' + (pct >= 100 ? ' success' : pct >= 60 ? '' : pct >= 30 ? ' warning' : ' danger');
-  document.getElementById('goal-balance-val').textContent = formatCurrency(balance);
+  if (pctEl) pctEl.textContent = `${Math.round(pct)}%`;
+  if (bar) {
+    bar.style.width      = `${Math.max(0, pct)}%`;
+    bar.style.background = pct >= 100 ? '#34d399' : pct >= 30 ? '#F07272' : '#f87171';
+  }
+  const gBalEl = document.getElementById('goal-balance-val');
+  if (gBalEl) gBalEl.textContent = formatCurrency(balance);
 }
 
 // ── Filters ────────────────────────────────────────────────
 function setupFilters() {
-  document.getElementById('filter-type').addEventListener('change', applyFiltersAndRender);
-  document.getElementById('filter-category').addEventListener('change', applyFiltersAndRender);
-  document.getElementById('filter-date-from').addEventListener('change', applyFiltersAndRender);
-  document.getElementById('filter-date-to').addEventListener('change', applyFiltersAndRender);
+  ['filter-type','filter-category','filter-date-from','filter-date-to'].forEach(id => {
+    document.getElementById(id).addEventListener('change', applyFiltersAndRender);
+  });
   document.getElementById('filter-clear').addEventListener('click', clearFilters);
 }
 
 function clearFilters() {
-  document.getElementById('filter-type').value = '';
-  document.getElementById('filter-category').value = '';
+  document.getElementById('filter-type').value      = '';
+  document.getElementById('filter-category').value  = '';
   document.getElementById('filter-date-from').value = '';
-  document.getElementById('filter-date-to').value = '';
+  document.getElementById('filter-date-to').value   = '';
   applyFiltersAndRender();
 }
 
@@ -184,39 +184,146 @@ function applyFiltersAndRender() {
   if (dateTo)   filtered = filtered.filter(t => t.fecha <= dateTo);
 
   renderTransactionTable(filtered);
+  renderTransactionList(filtered);
 }
 
-// ── Transaction Table ──────────────────────────────────────
+// ── Transaction Table (hidden, for JS compatibility) ───────
 function renderTransactionTable(transactions) {
   const tbody = document.getElementById('tx-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = transactions.map(t => {
+    const catName  = t.categorias?.nombre || 'Sin categoría';
+    const isIncome = t.tipo === 'ingreso';
+    return `<tr>
+      <td>${formatDate(t.fecha)}</td>
+      <td>${isIncome ? 'Ingreso' : 'Gasto'}</td>
+      <td>${escHtml(catName)}</td>
+      <td>${isIncome ? '+' : '-'}${formatCurrency(t.monto)}</td>
+      <td>${escHtml(t.descripcion || '')}</td>
+      <td>
+        <button onclick="openEditModal('${t.id}')">✏️</button>
+        <button onclick="deleteTx('${t.id}')">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Category icon map ──────────────────────────────────────
+const CAT_ICONS = {
+  'Alimentación':'🍽️','Transporte':'🚗','Entretenimiento':'🎬',
+  'Salud':'💊','Vivienda':'🏠','Ropa':'👕','Educación':'📚',
+  'Servicios':'⚡','Trabajo':'💼','Ahorro':'🏦','Otros':'📦'
+};
+
+// ── Transaction List (modern cards) ───────────────────────
+function renderTransactionList(transactions) {
+  const container = document.getElementById('tx-list-main');
+  if (!container) return;
+
   if (transactions.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6">
-      <div class="empty-state">
-        <div class="icon">💸</div>
-        <p>No hay transacciones para este período</p>
-      </div>
-    </td></tr>`;
+    container.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--dk-text3,#64748b)">
+      <div style="font-size:2rem;margin-bottom:.5rem">💸</div>
+      <p style="font-size:.875rem">No hay transacciones para este período</p>
+    </div>`;
     return;
   }
 
-  tbody.innerHTML = transactions.map(t => {
-    const catName = t.categorias?.nombre || 'Sin categoría';
+  container.innerHTML = transactions.map(t => {
+    const catName  = t.categorias?.nombre || 'Sin categoría';
     const isIncome = t.tipo === 'ingreso';
+    const icon     = CAT_ICONS[catName] || (isIncome ? '💵' : '💸');
+    const desc     = t.descripcion || catName;
     return `
-      <tr>
-        <td>${formatDate(t.fecha)}</td>
-        <td><span class="badge badge-${t.tipo}">${isIncome ? 'Ingreso' : 'Gasto'}</span></td>
-        <td>${escHtml(catName)}</td>
-        <td class="amount-${t.tipo}">${isIncome ? '+' : '-'}${formatCurrency(t.monto)}</td>
-        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(t.descripcion || '')}</td>
-        <td>
-          <div class="tx-actions">
-            <button class="btn btn-sm btn-ghost" onclick="openEditModal('${t.id}')">✏️</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteTx('${t.id}')">🗑</button>
-          </div>
-        </td>
-      </tr>`;
+      <div class="dk-tx-item">
+        <div class="dk-tx-icon ${isIncome ? 'income' : 'expense'}">${icon}</div>
+        <div class="dk-tx-body">
+          <div class="dk-tx-name">${escHtml(desc)}</div>
+          <div class="dk-tx-meta">${escHtml(catName)} · ${formatDate(t.fecha)}</div>
+        </div>
+        <div class="dk-tx-right">
+          <div class="dk-tx-amount ${isIncome ? 'income' : 'expense'}">${isIncome ? '+' : '-'}${formatCurrency(t.monto)}</div>
+        </div>
+        <div class="dk-tx-actions">
+          <button class="dk-btn dk-btn-ghost dk-btn-sm" onclick="openEditModal('${t.id}')" title="Editar">✏️</button>
+          <button class="dk-btn dk-btn-danger dk-btn-sm" onclick="deleteTx('${t.id}')" title="Eliminar">🗑</button>
+        </div>
+      </div>`;
   }).join('');
+}
+
+// ── Recent Transactions (dashboard preview) ────────────────
+function renderRecentTransactions() {
+  const container = document.getElementById('recent-tx-list');
+  if (!container) return;
+  const recent = allTransactions.slice(0, 5);
+
+  if (recent.length === 0) {
+    container.innerHTML = `<div style="padding:1.25rem;text-align:center;color:var(--dk-text3,#64748b);font-size:.875rem">
+      Aún no hay transacciones este mes
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = recent.map(t => {
+    const catName  = t.categorias?.nombre || 'Sin categoría';
+    const isIncome = t.tipo === 'ingreso';
+    const icon     = CAT_ICONS[catName] || (isIncome ? '💵' : '💸');
+    const desc     = t.descripcion || catName;
+    return `
+      <div class="dk-tx-item">
+        <div class="dk-tx-icon ${isIncome ? 'income' : 'expense'}">${icon}</div>
+        <div class="dk-tx-body">
+          <div class="dk-tx-name">${escHtml(desc)}</div>
+          <div class="dk-tx-meta">${escHtml(catName)}</div>
+        </div>
+        <div class="dk-tx-right">
+          <div class="dk-tx-amount ${isIncome ? 'income' : 'expense'}">${isIncome ? '+' : '-'}${formatCurrency(t.monto)}</div>
+          <div class="dk-tx-date">${formatDate(t.fecha)}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Sparkline (balance trend line) ────────────────────────
+function renderSparkline() {
+  const canvas = document.getElementById('sparkline-chart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  if (chartSparkline) { chartSparkline.destroy(); chartSparkline = null; }
+
+  const sorted = [...allTransactions].sort((a, b) => a.fecha.localeCompare(b.fecha));
+  if (sorted.length === 0) return;
+
+  const days = {};
+  sorted.forEach(t => {
+    const v = Number(t.monto) * (t.tipo === 'ingreso' ? 1 : -1);
+    days[t.fecha] = (days[t.fecha] || 0) + v;
+  });
+
+  let running = 0;
+  const points = Object.values(days).map(v => { running += v; return running; });
+
+  chartSparkline = new Chart(canvas.getContext('2d'), {
+    type: 'line',
+    data: {
+      labels: Object.keys(days),
+      datasets: [{
+        data: points,
+        borderColor: 'rgba(255,255,255,0.8)',
+        borderWidth: 1.5,
+        fill: true,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        tension: 0.4,
+        pointRadius: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { x: { display: false }, y: { display: false } },
+      animation: { duration: 300 }
+    }
+  });
 }
 
 function escHtml(str) {
@@ -236,16 +343,13 @@ function setupTransactionForm() {
 
 async function handleTxSubmit(e) {
   e.preventDefault();
-  const tx = readTxForm('tx');
+  const tx  = readTxForm('tx');
   if (!validateTx(tx, 'tx')) return;
 
   const btn = document.getElementById('tx-submit-btn');
   btn.disabled = true;
   try {
-    const { error } = await db.from('transacciones').insert({
-      ...tx,
-      usuario_id: currentUser.id
-    });
+    const { error } = await db.from('transacciones').insert({ ...tx, usuario_id: currentUser.id });
     if (error) throw error;
     showToast('Transacción guardada ✓', 'success');
     e.target.reset();
@@ -271,13 +375,12 @@ function readTxForm(prefix) {
 function validateTx(tx, prefix) {
   let valid = true;
   const markErr = (id, msg) => {
-    const el = document.getElementById(id);
-    el.classList.add('error');
-    valid = false;
+    document.getElementById(id)?.classList.add('error');
     showToast(msg, 'error');
+    valid = false;
   };
-  if (!tx.fecha)           markErr(`${prefix}-date`,     'Selecciona una fecha');
-  if (!tx.tipo)            markErr(`${prefix}-type`,     'Selecciona el tipo');
+  if (!tx.fecha)                   markErr(`${prefix}-date`,   'Selecciona una fecha');
+  if (!tx.tipo)                    markErr(`${prefix}-type`,   'Selecciona el tipo');
   if (!tx.monto || tx.monto <= 0) markErr(`${prefix}-amount`, 'Ingresa un monto válido');
   return valid;
 }
@@ -331,12 +434,12 @@ async function deleteTx(id) {
 
 // ── Category Selects ───────────────────────────────────────
 function populateCategorySelects() {
-  const options = `<option value="">Sin categoría</option>` +
-    allCategories.map(c => `<option value="${c.id}">${escHtml(c.nombre)}</option>`).join('');
-
   ['tx-category','modal-category','filter-category'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = (id === 'filter-category' ? '<option value="">Todas</option>' : '') +
+    if (!el) return;
+    el.innerHTML = (id === 'filter-category'
+      ? '<option value="">Todas las categorías</option>'
+      : '<option value="">Sin categoría</option>') +
       allCategories.map(c => `<option value="${c.id}">${escHtml(c.nombre)}</option>`).join('');
   });
 }
@@ -346,7 +449,7 @@ function renderCategoryChips() {
   const list = document.getElementById('category-list');
   if (!list) return;
   if (allCategories.length === 0) {
-    list.innerHTML = '<p style="color:var(--gray-400);font-size:.875rem">No hay categorías aún</p>';
+    list.innerHTML = '<p style="color:var(--dk-text3,#64748b);font-size:.875rem">No hay categorías aún</p>';
     return;
   }
   list.innerHTML = allCategories.map(c => `
@@ -399,7 +502,7 @@ async function saveGoal() {
   const { error } = await db.from('metas_ahorro').upsert({
     usuario_id: currentUser.id,
     anio: now.getFullYear(),
-    mes: now.getMonth() + 1,
+    mes:  now.getMonth() + 1,
     monto
   }, { onConflict: 'usuario_id,anio,mes' });
 
@@ -415,7 +518,7 @@ function renderCharts() {
 }
 
 function renderPieChart() {
-  const expenses = allTransactions.filter(t => t.tipo === 'gasto');
+  const expenses  = allTransactions.filter(t => t.tipo === 'gasto');
   const catTotals = {};
   expenses.forEach(t => {
     const name = t.categorias?.nombre || 'Sin categoría';
@@ -425,35 +528,44 @@ function renderPieChart() {
   const labels = Object.keys(catTotals);
   const values = Object.values(catTotals);
   const colors = [
-    '#4f46e5','#10b981','#f59e0b','#ef4444','#8b5cf6',
-    '#06b6d4','#ec4899','#84cc16','#f97316','#6366f1'
+    '#F07272','#34d399','#f59e0b','#60a5fa','#c084fc',
+    '#06b6d4','#fb923c','#a3e635','#f472b6','#818cf8'
   ];
 
-  const ctx = document.getElementById('pie-chart').getContext('2d');
-  if (chartPie) chartPie.destroy();
+  const canvas = document.getElementById('pie-chart');
+  if (!canvas) return;
+  if (chartPie) { chartPie.destroy(); chartPie = null; }
 
   if (labels.length === 0) {
-    document.getElementById('pie-chart').parentElement.innerHTML =
-      '<div class="empty-state"><div class="icon">📊</div><p>Sin gastos este mes</p></div>';
+    canvas.style.display = 'none';
+    let empty = canvas.parentElement.querySelector('.chart-empty-msg');
+    if (!empty) {
+      empty = document.createElement('div');
+      empty.className = 'chart-empty-msg';
+      empty.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100%;flex-direction:column;gap:.5rem;color:var(--dk-text3,#64748b)';
+      empty.innerHTML = '<span style="font-size:1.75rem">📊</span><span style="font-size:.875rem">Sin gastos este mes</span>';
+      canvas.parentElement.appendChild(empty);
+    } else {
+      empty.style.display = 'flex';
+    }
     return;
   }
 
-  chartPie = new Chart(ctx, {
+  canvas.style.display = '';
+  canvas.parentElement.querySelector('.chart-empty-msg')?.remove();
+
+  chartPie = new Chart(canvas.getContext('2d'), {
     type: 'doughnut',
     data: {
       labels,
-      datasets: [{ data: values, backgroundColor: colors.slice(0, labels.length), borderWidth: 2 }]
+      datasets: [{ data: values, backgroundColor: colors.slice(0, labels.length), borderWidth: 0 }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom' },
-        tooltip: {
-          callbacks: {
-            label: ctx => ` ${ctx.label}: ${formatCurrency(ctx.raw)}`
-          }
-        }
+        legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 12, boxWidth: 12 } },
+        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${formatCurrency(ctx.raw)}` } }
       }
     }
   });
@@ -462,8 +574,10 @@ function renderPieChart() {
 function renderBarChart() {
   const income  = allTransactions.filter(t => t.tipo === 'ingreso').reduce((s, t) => s + Number(t.monto), 0);
   const expense = allTransactions.filter(t => t.tipo === 'gasto').reduce((s, t)  => s + Number(t.monto), 0);
+  const balance = income - expense;
 
-  const ctx = document.getElementById('bar-chart').getContext('2d');
+  const ctx = document.getElementById('bar-chart')?.getContext('2d');
+  if (!ctx) return;
   if (chartBar) chartBar.destroy();
 
   chartBar = new Chart(ctx, {
@@ -471,8 +585,8 @@ function renderBarChart() {
     data: {
       labels: ['Ingresos', 'Gastos', 'Balance'],
       datasets: [{
-        data: [income, expense, income - expense],
-        backgroundColor: ['#10b981', '#ef4444', income - expense >= 0 ? '#4f46e5' : '#f59e0b'],
+        data: [income, expense, balance],
+        backgroundColor: ['#34d399', '#f87171', balance >= 0 ? '#F07272' : '#f59e0b'],
         borderRadius: 8,
         borderSkipped: false
       }]
@@ -483,10 +597,10 @@ function renderBarChart() {
       plugins: { legend: { display: false } },
       scales: {
         y: {
-          ticks: {
-            callback: v => formatCurrency(v)
-          }
-        }
+          ticks: { callback: v => formatCurrency(v), color: '#94a3b8', maxTicksLimit: 5 },
+          grid:  { color: 'rgba(255,255,255,0.06)' }
+        },
+        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
       }
     }
   });
@@ -498,8 +612,7 @@ async function loadComparisonData() {
   let y = currentYear, m = currentMonth;
   for (let i = 0; i < 6; i++) {
     months.unshift({ year: y, month: m });
-    const p = prevMonth(y, m);
-    y = p.year; m = p.month;
+    const p = prevMonth(y, m); y = p.year; m = p.month;
   }
 
   const rows = await Promise.all(months.map(async ({ year, month }) => {
@@ -516,17 +629,19 @@ async function loadComparisonData() {
 
 function renderComparisonTable(rows) {
   const tbody = document.getElementById('comparison-tbody');
+  if (!tbody) return;
   tbody.innerHTML = rows.map(r => `
     <div class="comparison-row">
       <div class="month-col">${monthLabel(r.year, r.month)}</div>
-      <div class="num-col" style="color:var(--success)">${formatCurrency(r.income)}</div>
-      <div class="num-col" style="color:var(--danger)">${formatCurrency(r.expense)}</div>
-      <div class="num-col ${r.balance >= 0 ? 'amount-income' : 'amount-expense'}">${formatCurrency(r.balance)}</div>
+      <div class="num-col" style="color:#34d399">${formatCurrency(r.income)}</div>
+      <div class="num-col" style="color:#f87171">${formatCurrency(r.expense)}</div>
+      <div class="num-col" style="color:${r.balance >= 0 ? '#34d399' : '#f87171'}">${formatCurrency(r.balance)}</div>
     </div>`).join('');
 }
 
 function renderComparisonChart(rows) {
-  const ctx = document.getElementById('comparison-chart').getContext('2d');
+  const ctx = document.getElementById('comparison-chart')?.getContext('2d');
+  if (!ctx) return;
   if (chartComparison) chartComparison.destroy();
 
   chartComparison = new Chart(ctx, {
@@ -534,17 +649,21 @@ function renderComparisonChart(rows) {
     data: {
       labels: rows.map(r => monthLabel(r.year, r.month).split(' ')[0]),
       datasets: [
-        { label: 'Ahorro', data: rows.map(r => r.balance), backgroundColor: '#4f46e5', borderRadius: 6 },
-        { label: 'Ingresos', data: rows.map(r => r.income), backgroundColor: '#10b981', borderRadius: 6 },
-        { label: 'Gastos', data: rows.map(r => r.expense), backgroundColor: '#ef4444', borderRadius: 6 },
+        { label: 'Ahorro',   data: rows.map(r => r.balance), backgroundColor: '#F07272', borderRadius: 5 },
+        { label: 'Ingresos', data: rows.map(r => r.income),  backgroundColor: '#34d399', borderRadius: 5 },
+        { label: 'Gastos',   data: rows.map(r => r.expense), backgroundColor: '#f87171', borderRadius: 5 },
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom' } },
+      plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12 } } },
       scales: {
-        y: { ticks: { callback: v => formatCurrency(v) } }
+        y: {
+          ticks: { callback: v => formatCurrency(v), color: '#94a3b8', maxTicksLimit: 5 },
+          grid:  { color: 'rgba(255,255,255,0.06)' }
+        },
+        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
       }
     }
   });
