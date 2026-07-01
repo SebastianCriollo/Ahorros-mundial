@@ -26,6 +26,10 @@
     </div>
     <div class="dk-header-right">
       <span id="user-email" class="dk-user-email"></span>
+      <button id="theme-toggle" class="dk-icon-btn" title="Cambiar tema">
+        <svg id="theme-icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg id="theme-icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
       <button id="logout-btn" class="dk-logout-btn">Salir</button>
     </div>
   </div>
@@ -120,6 +124,15 @@
       </div>
     </div>
 
+    <!-- Presupuestos por categoría -->
+    <div class="dk-card" id="budget-card" style="display:none">
+      <div class="dk-card-header">
+        <span class="dk-card-title">Presupuestos del mes</span>
+        <button class="dk-link-btn" id="budget-settings-link">Configurar →</button>
+      </div>
+      <div id="budget-progress-list"></div>
+    </div>
+
     <!-- Últimas transacciones -->
     <div class="dk-card">
       <div class="dk-card-header">
@@ -170,7 +183,13 @@
     </div>
 
     <div class="dk-card">
-      <div class="dk-card-title">Historial</div>
+      <div class="dk-card-header">
+        <span class="dk-card-title">Historial</span>
+        <button id="export-csv-btn" class="dk-btn dk-btn-ghost dk-btn-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Exportar CSV
+        </button>
+      </div>
 
       <!-- Filtros -->
       <div class="dk-filters">
@@ -197,6 +216,36 @@
 
   <!-- ══ COMPARATIVA ══ -->
   <section id="section-comparison" class="dk-section">
+
+    <!-- Resumen anual -->
+    <div class="dk-card">
+      <div class="dk-card-header">
+        <span class="dk-card-title">Resumen anual</span>
+        <div class="dk-year-nav">
+          <button id="prev-year" class="dk-month-arrow">‹</button>
+          <span id="year-label" class="dk-year-label">—</span>
+          <button id="next-year" class="dk-month-arrow">›</button>
+        </div>
+      </div>
+      <div class="dk-annual-totals">
+        <div class="dk-annual-item">
+          <span class="dk-annual-lbl">Ingresos</span>
+          <span id="annual-income" class="dk-annual-val" style="color:#34d399">$0</span>
+        </div>
+        <div class="dk-annual-item">
+          <span class="dk-annual-lbl">Gastos</span>
+          <span id="annual-expense" class="dk-annual-val" style="color:#f87171">$0</span>
+        </div>
+        <div class="dk-annual-item">
+          <span class="dk-annual-lbl">Ahorro total</span>
+          <span id="annual-savings" class="dk-annual-val" style="color:#F07272">$0</span>
+        </div>
+      </div>
+      <div style="height:220px;margin-top:1rem">
+        <canvas id="annual-chart"></canvas>
+      </div>
+    </div>
+
     <div class="dk-card">
       <div class="dk-card-title">Últimos 6 meses</div>
       <div style="height:260px;margin-bottom:1.5rem">
@@ -232,10 +281,70 @@
       </div>
     </div>
 
+    <!-- Presupuestos por categoría -->
+    <div class="dk-card" id="budget-settings">
+      <div class="dk-card-title">Presupuesto por categoría</div>
+      <p class="dk-text-muted" style="margin-bottom:1rem;font-size:.875rem">
+        Define un límite de gasto mensual por categoría. En el resumen verás cuánto llevas gastado.
+      </p>
+      <div id="budget-config-list"></div>
+    </div>
+
+    <!-- Transacciones recurrentes -->
+    <div class="dk-card" id="recurring-settings">
+      <div class="dk-card-title">Transacciones recurrentes</div>
+      <p class="dk-text-muted" style="margin-bottom:1rem;font-size:.875rem">
+        Plantillas para gastos o ingresos que se repiten cada mes (arriendo, sueldo, suscripciones).
+        Con el botón <strong>Aplicar</strong> las agregas al mes que estés viendo.
+      </p>
+
+      <div id="recurring-list" style="margin-bottom:1rem"></div>
+
+      <form id="recurring-form">
+        <div class="dk-form-grid">
+          <div class="dk-field">
+            <label class="dk-label">Tipo</label>
+            <select id="rec-type" class="dk-input" required>
+              <option value="gasto">Gasto</option>
+              <option value="ingreso">Ingreso</option>
+            </select>
+          </div>
+          <div class="dk-field">
+            <label class="dk-label">Categoría</label>
+            <select id="rec-category" class="dk-input"></select>
+          </div>
+          <div class="dk-field">
+            <label class="dk-label">Monto</label>
+            <input type="number" id="rec-amount" class="dk-input" placeholder="0" min="0.01" step="any" required>
+          </div>
+          <div class="dk-field">
+            <label class="dk-label">Día del mes</label>
+            <input type="number" id="rec-day" class="dk-input" placeholder="1" min="1" max="31" value="1">
+          </div>
+          <div class="dk-field dk-field-full">
+            <label class="dk-label">Descripción <span class="dk-optional">(opcional)</span></label>
+            <input type="text" id="rec-desc" class="dk-input" placeholder="Ej: Arriendo" maxlength="200">
+          </div>
+        </div>
+        <button type="submit" class="dk-btn dk-btn-outline" style="margin-top:1rem">+ Agregar recurrente</button>
+      </form>
+    </div>
+
+    <div class="dk-card">
+      <div class="dk-card-title">Apariencia</div>
+      <div class="dk-setting-row">
+        <div>
+          <div class="dk-setting-name">Tema claro</div>
+          <div class="dk-text-muted" style="font-size:.8rem">Cambia entre fondo oscuro y claro</div>
+        </div>
+        <button id="theme-toggle-2" class="dk-btn dk-btn-ghost dk-btn-sm">Cambiar</button>
+      </div>
+    </div>
+
     <div class="dk-card">
       <div class="dk-card-title">Cuenta</div>
       <p class="dk-text-muted" style="font-size:.875rem;margin-bottom:1rem">
-        Conectado como: <strong id="settings-email" style="color:#f1f5f9"></strong>
+        Conectado como: <strong id="settings-email" class="dk-strong"></strong>
       </p>
       <button onclick="document.getElementById('logout-btn').click()" class="dk-btn dk-btn-danger dk-btn-sm">
         Cerrar sesión
@@ -303,7 +412,7 @@
         <input type="text" id="modal-desc" class="dk-input" maxlength="200">
       </div>
     </div>
-    <div class="modal-footer" style="background:#18181c;border-top:1px solid rgba(255,255,255,0.07)">
+    <div class="modal-footer dk-modal-footer">
       <button id="modal-cancel" class="dk-btn dk-btn-ghost">Cancelar</button>
       <button id="modal-save" class="dk-btn dk-btn-primary">Guardar cambios</button>
     </div>
@@ -342,12 +451,41 @@
     document.getElementById('tx-date').focus();
   });
 
-  // "Ver todas" link
-  document.getElementById('ver-todas-btn').addEventListener('click', () => {
-    document.getElementById('fab-add-btn').dispatchEvent(new Event('click'));
+  // Helper: navegar a una sección por id
+  function goToSection(sectionId) {
+    document.querySelectorAll('.dk-mob-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.dk-section').forEach(s => s.classList.remove('active'));
-    document.getElementById('section-transactions').classList.add('active');
+    document.querySelector(`.dk-mob-btn[data-section="${sectionId}"]`)?.classList.add('active');
+    document.querySelector(`.nav-tab[data-section="${sectionId}"]`)?.classList.add('active');
+    document.getElementById(sectionId)?.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // "Ver todas" link
+  document.getElementById('ver-todas-btn').addEventListener('click', () => goToSection('section-transactions'));
+
+  // "Configurar" presupuestos → Ajustes
+  document.getElementById('budget-settings-link')?.addEventListener('click', () => {
+    goToSection('section-settings');
+    setTimeout(() => document.getElementById('budget-settings')?.scrollIntoView({ behavior: 'smooth' }), 100);
   });
+
+  // ── Tema claro / oscuro ──
+  function applyTheme(theme) {
+    const light = theme === 'light';
+    document.body.classList.toggle('light', light);
+    document.getElementById('theme-icon-moon').style.display = light ? 'none' : 'block';
+    document.getElementById('theme-icon-sun').style.display  = light ? 'block' : 'none';
+    localStorage.setItem('am-theme', theme);
+    if (typeof refreshChartsForTheme === 'function') refreshChartsForTheme();
+  }
+  function toggleTheme() {
+    applyTheme(document.body.classList.contains('light') ? 'dark' : 'light');
+  }
+  applyTheme(localStorage.getItem('am-theme') || 'dark');
+  document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+  document.getElementById('theme-toggle-2')?.addEventListener('click', toggleTheme);
 
   // Balance hide/show
   let balanceVisible = true;

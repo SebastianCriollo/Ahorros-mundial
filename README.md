@@ -18,6 +18,11 @@ Aplicación web de seguimiento de finanzas personales. Registra ingresos y gasto
 | Meta de ahorro | Barra de progreso con % alcanzado |
 | Filtros | Por tipo, categoría y rango de fechas |
 | Categorías | Editables: agregar y eliminar las tuyas |
+| **Presupuesto por categoría** | Límite mensual por categoría con alerta al superarlo |
+| **Transacciones recurrentes** | Plantillas (arriendo, sueldo…) que agregas al mes con un clic |
+| **Resumen anual** | Totales del año y gráfico de 12 meses |
+| **Exportar CSV** | Descarga tus transacciones para Excel |
+| **Tema claro/oscuro** | Cambia la apariencia y se recuerda tu elección |
 | Responsive | Funciona en móvil y escritorio |
 
 ---
@@ -45,6 +50,11 @@ Aplicación web de seguimiento de finanzas personales. Registra ingresos y gasto
 > - Tabla `metas_ahorro` con RLS
 > - Índices para acelerar las consultas
 > - Un trigger que agrega 7 categorías por defecto cuando te registras
+
+6. **Para las funciones nuevas** (presupuestos y transacciones recurrentes), abre otra
+   **"New query"** y ejecuta también el archivo **`supabase_extras.sql`**. Es seguro
+   correrlo aunque ya tengas las tablas base; solo agrega las tablas `presupuestos` y
+   `transacciones_recurrentes` con su RLS.
 
 ---
 

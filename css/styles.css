@@ -1548,3 +1548,134 @@ a:hover { text-decoration: underline; }
   .dark-app .dk-stats-row      { gap: .5rem; }
   .dark-app .dk-stat-card      { padding: .75rem .5rem; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   FUNCIONES NUEVAS — presupuestos, recurrentes, anual, tema
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Botón de ícono en header ── */
+.dark-app .dk-icon-btn {
+  background: transparent;
+  border: 1px solid var(--dk-border);
+  color: var(--dk-text2);
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all .15s;
+}
+.dark-app .dk-icon-btn:hover { color: var(--dk-coral); border-color: var(--dk-coral); }
+
+/* ── Presupuestos: configuración (Ajustes) ── */
+.dark-app .dk-budget-row {
+  display: grid;
+  grid-template-columns: 1fr 120px auto;
+  gap: .5rem;
+  align-items: center;
+  padding: .5rem 0;
+  border-bottom: 1px solid var(--dk-border);
+}
+.dark-app .dk-budget-row:last-child { border-bottom: none; }
+.dark-app .dk-budget-cat { font-size: .875rem; color: var(--dk-text); }
+@media (max-width: 480px) {
+  .dark-app .dk-budget-row { grid-template-columns: 1fr auto; grid-template-areas: "cat cat" "inp btn"; }
+  .dark-app .dk-budget-cat { grid-area: cat; }
+  .dark-app .dk-budget-input { grid-area: inp; }
+}
+
+/* ── Presupuestos: progreso (Dashboard) ── */
+.dark-app .dk-budget-prog { padding: .625rem 0; border-bottom: 1px solid var(--dk-border); }
+.dark-app .dk-budget-prog:last-child { border-bottom: none; }
+.dark-app .dk-budget-prog-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: .4rem;
+}
+.dark-app .dk-budget-prog-name { font-size: .85rem; font-weight: 600; color: var(--dk-text); }
+.dark-app .dk-budget-prog-num  { font-size: .78rem; color: var(--dk-text2); font-weight: 600; }
+.dark-app .dk-budget-over { font-size: .72rem; color: var(--dk-red); margin-top: .3rem; display: inline-block; }
+
+/* ── Recurrentes ── */
+.dark-app .dk-rec-item {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .625rem 0;
+  border-bottom: 1px solid var(--dk-border);
+}
+.dark-app .dk-rec-item:last-child { border-bottom: none; }
+.dark-app .dk-rec-item .dk-tx-amount { margin-left: auto; }
+.dark-app .dk-rec-item .dk-tx-actions { flex-shrink: 0; }
+@media (max-width: 480px) {
+  .dark-app .dk-rec-item { flex-wrap: wrap; }
+  .dark-app .dk-rec-item .dk-tx-actions { width: 100%; justify-content: flex-end; }
+}
+
+/* ── Resumen anual ── */
+.dark-app .dk-year-nav {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  background: var(--dk-surface2);
+  border: 1px solid var(--dk-border);
+  border-radius: 999px;
+  padding: .2rem .625rem;
+}
+.dark-app .dk-year-label { font-size: .85rem; font-weight: 700; color: var(--dk-text); min-width: 42px; text-align: center; }
+
+.dark-app .dk-annual-totals {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .75rem;
+}
+.dark-app .dk-annual-item {
+  background: var(--dk-surface2);
+  border: 1px solid var(--dk-border);
+  border-radius: 12px;
+  padding: .75rem;
+  text-align: center;
+}
+.dark-app .dk-annual-lbl {
+  display: block;
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 700;
+  color: var(--dk-text3);
+  margin-bottom: .25rem;
+}
+.dark-app .dk-annual-val { font-size: .95rem; font-weight: 800; white-space: nowrap; }
+@media (max-width: 400px) { .dark-app .dk-annual-val { font-size: .8rem; } }
+
+/* ── Fila de ajuste (tema) ── */
+.dark-app .dk-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.dark-app .dk-setting-name { font-size: .9rem; font-weight: 600; color: var(--dk-text); }
+
+.dark-app .dk-strong { color: var(--dk-text); font-weight: 700; }
+.dark-app .dk-modal-footer { background: var(--dk-surface); border-top: 1px solid var(--dk-border); }
+
+/* ═══════════════════════════════════════════════════════════
+   MODO CLARO — solo sobrescribe las variables del tema
+   ═══════════════════════════════════════════════════════════ */
+.dark-app.light {
+  --dk-bg:       #eef2f7;
+  --dk-surface:  #ffffff;
+  --dk-surface2: #f1f5f9;
+  --dk-border:   rgba(15,23,42,0.10);
+  --dk-text:     #0f172a;
+  --dk-text2:    #475569;
+  --dk-text3:    #94a3b8;
+}
+.dark-app.light .dk-progress-wrap { background: rgba(15,23,42,0.08); }
+.dark-app.light .dk-btn-ghost:hover:not(:disabled) { background: rgba(15,23,42,0.05); }
+.dark-app.light .dk-header,
+.dark-app.light .dk-nav { box-shadow: 0 1px 3px rgba(15,23,42,0.04); }
+.dark-app.light .loading-overlay { background: var(--dk-bg); }

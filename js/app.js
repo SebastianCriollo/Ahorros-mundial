@@ -8,11 +8,16 @@ let currentYear    = new Date().getFullYear();
 let currentMonth   = new Date().getMonth() + 1;
 let allCategories  = [];
 let allTransactions = [];
+let allBudgets     = [];   // presupuestos por categoría
+let allRecurring   = [];   // transacciones recurrentes
+let currentFiltered = [];  // último set filtrado (para exportar)
+let annualYear     = new Date().getFullYear();
 let editingTxId    = null;
 let chartPie       = null;
 let chartBar       = null;
 let chartComparison = null;
 let chartSparkline  = null;
+let chartAnnual    = null;
 
 // ── Boot ───────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -30,15 +35,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('user-email').textContent = currentUser.email;
   document.getElementById('logout-btn').addEventListener('click', handleLogout);
 
-  await Promise.all([loadCategories(), loadGoal()]);
+  await Promise.all([loadCategories(), loadGoal(), loadBudgets(), loadRecurring()]);
   setupNavigation();
   setupMonthNav();
   setupTransactionForm();
   setupFilters();
   setupCategoryManagement();
   setupGoalForm();
+  setupBudgets();
+  setupRecurring();
+  setupExport();
+  setupAnnual();
 
+  renderBudgetConfig();
+  renderRecurringList();
   await refreshAll();
+  await renderAnnual();
   showLoading(false);
 
   db.auth.onAuthStateChange((event) => {
@@ -123,6 +135,7 @@ async function refreshAll() {
   renderSummary();
   renderRecentTransactions();
   renderSparkline();
+  renderBudgetProgress();
   await loadComparisonData();
 }
 
@@ -183,6 +196,7 @@ function applyFiltersAndRender() {
   if (dateFrom) filtered = filtered.filter(t => t.fecha >= dateFrom);
   if (dateTo)   filtered = filtered.filter(t => t.fecha <= dateTo);
 
+  currentFiltered = filtered;
   renderTransactionTable(filtered);
   renderTransactionList(filtered);
 }
@@ -210,9 +224,9 @@ function renderTransactionTable(transactions) {
 
 // ── Category icon map ──────────────────────────────────────
 const CAT_ICONS = {
-  'Alimentación':'🍽️','Transporte':'🚗','Entretenimiento':'🎬',
-  'Salud':'💊','Vivienda':'🏠','Ropa':'👕','Educación':'📚',
-  'Servicios':'⚡','Trabajo':'💼','Ahorro':'🏦','Otros':'📦'
+  'Comida':'🍽️','Alimentación':'🍽️','Transporte':'🚗','Ocio':'🎬',
+  'Entretenimiento':'🎬','Salud':'💊','Vivienda':'🏠','Ropa':'👕',
+  'Educación':'📚','Servicios':'⚡','Trabajo':'💼','Ahorro':'🏦','Otros':'📦'
 };
 
 // ── Transaction List (modern cards) ───────────────────────
@@ -434,13 +448,15 @@ async function deleteTx(id) {
 
 // ── Category Selects ───────────────────────────────────────
 function populateCategorySelects() {
-  ['tx-category','modal-category','filter-category'].forEach(id => {
+  ['tx-category','modal-category','filter-category','rec-category'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
+    const prev = el.value;
     el.innerHTML = (id === 'filter-category'
       ? '<option value="">Todas las categorías</option>'
       : '<option value="">Sin categoría</option>') +
       allCategories.map(c => `<option value="${c.id}">${escHtml(c.nombre)}</option>`).join('');
+    if (prev) el.value = prev;
   });
 }
 
@@ -564,7 +580,7 @@ function renderPieChart() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 12, boxWidth: 12 } },
+        legend: { position: 'bottom', labels: { color: cTick(), padding: 12, boxWidth: 12 } },
         tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${formatCurrency(ctx.raw)}` } }
       }
     }
@@ -597,10 +613,10 @@ function renderBarChart() {
       plugins: { legend: { display: false } },
       scales: {
         y: {
-          ticks: { callback: v => formatCurrency(v), color: '#94a3b8', maxTicksLimit: 5 },
-          grid:  { color: 'rgba(255,255,255,0.06)' }
+          ticks: { callback: v => formatCurrency(v), color: cTick(), maxTicksLimit: 5 },
+          grid:  { color: cGrid() }
         },
-        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+        x: { ticks: { color: cTick() }, grid: { display: false } }
       }
     }
   });
@@ -657,13 +673,346 @@ function renderComparisonChart(rows) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 12 } } },
+      plugins: { legend: { position: 'bottom', labels: { color: cTick(), boxWidth: 12 } } },
       scales: {
         y: {
-          ticks: { callback: v => formatCurrency(v), color: '#94a3b8', maxTicksLimit: 5 },
-          grid:  { color: 'rgba(255,255,255,0.06)' }
+          ticks: { callback: v => formatCurrency(v), color: cTick(), maxTicksLimit: 5 },
+          grid:  { color: cGrid() }
         },
-        x: { ticks: { color: '#94a3b8' }, grid: { display: false } }
+        x: { ticks: { color: cTick() }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  TEMA (colores de gráficos según claro/oscuro)
+// ════════════════════════════════════════════════════════════
+function isLight() { return document.body.classList.contains('light'); }
+function cTick()   { return isLight() ? '#475569' : '#94a3b8'; }
+function cGrid()   { return isLight() ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'; }
+
+function refreshChartsForTheme() {
+  if (typeof Chart !== 'undefined') {
+    Chart.defaults.color = cTick();
+    Chart.defaults.borderColor = cGrid();
+  }
+  if (!currentUser) return;   // aún no hay datos cargados
+  renderCharts();
+  renderSparkline();
+  loadComparisonData();
+  renderAnnual();
+}
+
+// ════════════════════════════════════════════════════════════
+//  PRESUPUESTOS POR CATEGORÍA
+// ════════════════════════════════════════════════════════════
+async function loadBudgets() {
+  try {
+    const { data, error } = await db.from('presupuestos').select('*');
+    if (error) throw error;
+    allBudgets = data || [];
+  } catch (err) {
+    allBudgets = [];   // la tabla aún no existe → se ignora sin romper la app
+  }
+}
+
+function setupBudgets() {
+  // los inputs se generan dinámicamente en renderBudgetConfig
+}
+
+function renderBudgetConfig() {
+  const cont = document.getElementById('budget-config-list');
+  if (!cont) return;
+  if (allCategories.length === 0) {
+    cont.innerHTML = '<p class="dk-text-muted" style="font-size:.85rem">Crea categorías primero.</p>';
+    return;
+  }
+  cont.innerHTML = allCategories.map(c => {
+    const b = allBudgets.find(x => x.categoria_id === c.id);
+    const val = b ? b.monto : '';
+    const icon = CAT_ICONS[c.nombre] || '📦';
+    return `
+      <div class="dk-budget-row">
+        <span class="dk-budget-cat">${icon} ${escHtml(c.nombre)}</span>
+        <input type="number" class="dk-input dk-input-sm dk-budget-input"
+               data-cat="${c.id}" placeholder="Sin límite" min="0" step="any" value="${val}">
+        <button class="dk-btn dk-btn-outline dk-btn-sm" onclick="saveBudget('${c.id}')">Guardar</button>
+      </div>`;
+  }).join('');
+}
+
+async function saveBudget(catId) {
+  const input = document.querySelector(`.dk-budget-input[data-cat="${catId}"]`);
+  const monto = parseFloat(input.value);
+
+  if (!monto || monto <= 0) {
+    // borrar presupuesto si lo dejan vacío o en cero
+    const existing = allBudgets.find(b => b.categoria_id === catId);
+    if (existing) {
+      const { error } = await db.from('presupuestos').delete().eq('id', existing.id);
+      if (error) return showToast('Error: ' + error.message, 'error');
+      showToast('Presupuesto eliminado', 'success');
+    }
+  } else {
+    const { error } = await db.from('presupuestos').upsert({
+      usuario_id: currentUser.id, categoria_id: catId, monto
+    }, { onConflict: 'usuario_id,categoria_id' });
+    if (error) {
+      if (String(error.message).includes('presupuestos'))
+        return showToast('Falta crear la tabla. Ejecuta supabase_extras.sql', 'error');
+      return showToast('Error: ' + error.message, 'error');
+    }
+    showToast('Presupuesto guardado ✓', 'success');
+  }
+  await loadBudgets();
+  renderBudgetProgress();
+}
+
+function renderBudgetProgress() {
+  const card = document.getElementById('budget-card');
+  const cont = document.getElementById('budget-progress-list');
+  if (!cont || !card) return;
+
+  const active = allBudgets.filter(b => Number(b.monto) > 0);
+  if (active.length === 0) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  // gasto del mes por categoría
+  const spent = {};
+  allTransactions.filter(t => t.tipo === 'gasto').forEach(t => {
+    if (t.categoria_id) spent[t.categoria_id] = (spent[t.categoria_id] || 0) + Number(t.monto);
+  });
+
+  cont.innerHTML = active.map(b => {
+    const cat  = allCategories.find(c => c.id === b.categoria_id);
+    const name = cat ? cat.nombre : 'Categoría';
+    const icon = CAT_ICONS[name] || '📦';
+    const used = spent[b.categoria_id] || 0;
+    const pct  = Math.min((used / Number(b.monto)) * 100, 100);
+    const over = used > Number(b.monto);
+    const color = over ? '#f87171' : pct >= 80 ? '#f59e0b' : '#34d399';
+    return `
+      <div class="dk-budget-prog">
+        <div class="dk-budget-prog-top">
+          <span class="dk-budget-prog-name">${icon} ${escHtml(name)}</span>
+          <span class="dk-budget-prog-num" style="color:${over ? '#f87171' : 'inherit'}">
+            ${formatCurrency(used)} / ${formatCurrency(b.monto)}
+          </span>
+        </div>
+        <div class="dk-progress-wrap">
+          <div class="dk-progress-bar" style="width:${pct}%;background:${color}"></div>
+        </div>
+        ${over ? '<span class="dk-budget-over">⚠ Superaste el presupuesto</span>' : ''}
+      </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════════════════
+//  TRANSACCIONES RECURRENTES
+// ════════════════════════════════════════════════════════════
+async function loadRecurring() {
+  try {
+    const { data, error } = await db
+      .from('transacciones_recurrentes')
+      .select('*, categorias(nombre)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    allRecurring = data || [];
+  } catch (err) {
+    allRecurring = [];
+  }
+}
+
+function setupRecurring() {
+  const form = document.getElementById('recurring-form');
+  if (form) form.addEventListener('submit', addRecurring);
+}
+
+function renderRecurringList() {
+  const cont = document.getElementById('recurring-list');
+  if (!cont) return;
+  if (allRecurring.length === 0) {
+    cont.innerHTML = '<p class="dk-text-muted" style="font-size:.85rem">Aún no tienes plantillas recurrentes.</p>';
+    return;
+  }
+  cont.innerHTML = allRecurring.map(r => {
+    const catName = r.categorias?.nombre || 'Sin categoría';
+    const isIncome = r.tipo === 'ingreso';
+    const icon = CAT_ICONS[catName] || (isIncome ? '💵' : '💸');
+    const desc = r.descripcion || catName;
+    return `
+      <div class="dk-rec-item">
+        <div class="dk-tx-icon ${isIncome ? 'income' : 'expense'}">${icon}</div>
+        <div class="dk-tx-body">
+          <div class="dk-tx-name">${escHtml(desc)}</div>
+          <div class="dk-tx-meta">${escHtml(catName)} · día ${r.dia_del_mes} · ${isIncome ? 'Ingreso' : 'Gasto'}</div>
+        </div>
+        <div class="dk-tx-amount ${isIncome ? 'income' : 'expense'}">${isIncome ? '+' : '-'}${formatCurrency(r.monto)}</div>
+        <div class="dk-tx-actions">
+          <button class="dk-btn dk-btn-primary dk-btn-sm" onclick="applyRecurring('${r.id}')" title="Agregar al mes actual">Aplicar</button>
+          <button class="dk-btn dk-btn-danger dk-btn-sm" onclick="deleteRecurring('${r.id}')" title="Eliminar">🗑</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function addRecurring(e) {
+  e.preventDefault();
+  const rec = {
+    usuario_id:   currentUser.id,
+    tipo:         document.getElementById('rec-type').value,
+    categoria_id: document.getElementById('rec-category').value || null,
+    monto:        parseFloat(document.getElementById('rec-amount').value),
+    descripcion:  document.getElementById('rec-desc').value.trim(),
+    dia_del_mes:  parseInt(document.getElementById('rec-day').value) || 1,
+  };
+  if (!rec.monto || rec.monto <= 0) return showToast('Ingresa un monto válido', 'error');
+
+  const { error } = await db.from('transacciones_recurrentes').insert(rec);
+  if (error) {
+    if (String(error.message).includes('transacciones_recurrentes'))
+      return showToast('Falta crear la tabla. Ejecuta supabase_extras.sql', 'error');
+    return showToast('Error: ' + error.message, 'error');
+  }
+  showToast('Recurrente agregada ✓', 'success');
+  e.target.reset();
+  document.getElementById('rec-day').value = '1';
+  await loadRecurring();
+  renderRecurringList();
+}
+
+async function deleteRecurring(id) {
+  if (!confirm('¿Eliminar esta plantilla recurrente?')) return;
+  const { error } = await db.from('transacciones_recurrentes').delete().eq('id', id);
+  if (error) return showToast('Error: ' + error.message, 'error');
+  showToast('Eliminada', 'success');
+  await loadRecurring();
+  renderRecurringList();
+}
+
+async function applyRecurring(id) {
+  const r = allRecurring.find(x => x.id === id);
+  if (!r) return;
+
+  // fecha dentro del mes que se está viendo (ajustando día si el mes es más corto)
+  const lastDay = new Date(currentYear, currentMonth, 0).getDate();
+  const day     = Math.min(r.dia_del_mes, lastDay);
+  const fecha   = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+
+  // evitar duplicados: misma descripción, monto, tipo y mes
+  const dup = allTransactions.find(t =>
+    t.tipo === r.tipo &&
+    Number(t.monto) === Number(r.monto) &&
+    (t.descripcion || '') === (r.descripcion || '') &&
+    String(t.categoria_id) === String(r.categoria_id)
+  );
+  if (dup && !confirm('Parece que ya existe una transacción igual este mes. ¿Agregar de todas formas?')) return;
+
+  const { error } = await db.from('transacciones').insert({
+    usuario_id:   currentUser.id,
+    fecha,
+    tipo:         r.tipo,
+    categoria_id: r.categoria_id,
+    monto:        r.monto,
+    descripcion:  r.descripcion,
+  });
+  if (error) return showToast('Error: ' + error.message, 'error');
+  showToast(`"${r.descripcion || 'Recurrente'}" agregada a ${monthLabel(currentYear, currentMonth)} ✓`, 'success');
+  await refreshAll();
+}
+
+// ════════════════════════════════════════════════════════════
+//  EXPORTAR CSV
+// ════════════════════════════════════════════════════════════
+function setupExport() {
+  const btn = document.getElementById('export-csv-btn');
+  if (btn) btn.addEventListener('click', exportCSV);
+}
+
+function exportCSV() {
+  const rows = currentFiltered.length ? currentFiltered : allTransactions;
+  if (rows.length === 0) return showToast('No hay transacciones para exportar', 'error');
+
+  const header = ['Fecha', 'Tipo', 'Categoría', 'Monto', 'Descripción'];
+  const csvRows = rows.map(t => {
+    const cat = t.categorias?.nombre || 'Sin categoría';
+    return [
+      t.fecha,
+      t.tipo,
+      cat,
+      t.monto,
+      (t.descripcion || '').replace(/"/g, '""')
+    ].map(v => `"${v}"`).join(',');
+  });
+
+  const csv = '﻿' + [header.join(','), ...csvRows].join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ahorros_${currentYear}-${String(currentMonth).padStart(2,'0')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV descargado ✓', 'success');
+}
+
+// ════════════════════════════════════════════════════════════
+//  RESUMEN ANUAL
+// ════════════════════════════════════════════════════════════
+function setupAnnual() {
+  document.getElementById('prev-year')?.addEventListener('click', () => {
+    annualYear--; renderAnnual();
+  });
+  document.getElementById('next-year')?.addEventListener('click', () => {
+    annualYear++; renderAnnual();
+  });
+}
+
+async function renderAnnual() {
+  const lbl = document.getElementById('year-label');
+  if (lbl) lbl.textContent = annualYear;
+
+  const from = `${annualYear}-01-01`;
+  const to   = `${annualYear}-12-31`;
+  const { data } = await db.from('transacciones').select('fecha,tipo,monto').gte('fecha', from).lte('fecha', to);
+  const txs = data || [];
+
+  const incomeByMonth  = new Array(12).fill(0);
+  const expenseByMonth = new Array(12).fill(0);
+  txs.forEach(t => {
+    const m = parseInt(t.fecha.split('-')[1]) - 1;
+    if (t.tipo === 'ingreso') incomeByMonth[m]  += Number(t.monto);
+    else                      expenseByMonth[m] += Number(t.monto);
+  });
+
+  const totalIncome  = incomeByMonth.reduce((a, b) => a + b, 0);
+  const totalExpense = expenseByMonth.reduce((a, b) => a + b, 0);
+
+  document.getElementById('annual-income').textContent  = formatCurrency(totalIncome);
+  document.getElementById('annual-expense').textContent = formatCurrency(totalExpense);
+  document.getElementById('annual-savings').textContent = formatCurrency(totalIncome - totalExpense);
+
+  const ctx = document.getElementById('annual-chart')?.getContext('2d');
+  if (!ctx) return;
+  if (chartAnnual) chartAnnual.destroy();
+
+  chartAnnual = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
+      datasets: [
+        { label: 'Ingresos', data: incomeByMonth,  backgroundColor: '#34d399', borderRadius: 4 },
+        { label: 'Gastos',   data: expenseByMonth, backgroundColor: '#f87171', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { color: cTick(), boxWidth: 12 } } },
+      scales: {
+        y: { ticks: { callback: v => formatCurrency(v), color: cTick(), maxTicksLimit: 5 }, grid: { color: cGrid() } },
+        x: { ticks: { color: cTick() }, grid: { display: false } }
       }
     }
   });
