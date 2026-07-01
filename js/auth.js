@@ -58,8 +58,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       await handleLogin(email, password);
       window.location.replace('index.html');
     } catch (err) {
-      const msg = err?.message || err?.error_description || JSON.stringify(err) || '';
-      toast(friendlyError(msg), 'error');
+      console.error('[login] error completo:', err);
+      toast(friendlyError(extractError(err)), 'error');
     } finally {
       btn.disabled = false;
       spinner.classList.remove('show');
@@ -83,21 +83,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.disabled = true;
     spinner.classList.add('show');
     try {
-      const { data } = await handleSignup(email, password);
+      const data = await handleSignup(email, password);
       if (data.session) {
         window.location.replace('index.html');
       } else {
         toast('Cuenta creada. Revisa tu email para confirmar.', 'success');
       }
     } catch (err) {
-      const msg = err?.message || err?.error_description || JSON.stringify(err) || '';
-      toast(friendlyError(msg), 'error');
+      console.error('[signup] error completo:', err);
+      toast(friendlyError(extractError(err)), 'error');
     } finally {
       btn.disabled = false;
       spinner.classList.remove('show');
     }
   });
 });
+
+// Extrae el mensaje más útil posible de un error de Supabase.
+// Los errores de Supabase Auth traen .message, .status (HTTP) y .code.
+function extractError(err) {
+  if (!err) return '';
+  if (typeof err === 'string') return err;
+  const msg    = err.message || err.error_description || err.error || '';
+  const status = err.status || err.statusCode;
+  const code   = err.code;
+  if (msg) return status ? `${msg} (HTTP ${status})` : msg;
+  if (code) return `código: ${code}${status ? ` (HTTP ${status})` : ''}`;
+  if (status) return `HTTP ${status}`;
+  return '';
+}
 
 function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -125,14 +139,18 @@ function clearErrors() {
 
 function friendlyError(msg) {
   if (!msg || typeof msg !== 'string' || msg === '{}' || msg.trim() === '')
-    return 'Supabase tiene un problema técnico ahora mismo. Espera unos minutos e intenta de nuevo.';
-  if (msg.includes('Invalid login') || msg.includes('invalid_credentials')) return 'Email o contraseña incorrectos';
-  if (msg.includes('already registered') || msg.includes('User already registered')) return 'Este email ya está registrado. Inicia sesión.';
-  if (msg.includes('Email not confirmed') || msg.includes('email_not_confirmed')) return 'Debes confirmar tu email antes de entrar';
-  if (msg.includes('Password should') || msg.includes('weak')) return 'La contraseña debe tener al menos 6 caracteres';
-  if (msg.includes('signups are disabled') || msg.includes('Signups not allowed')) return 'El registro está desactivado. Revisa la configuración de Supabase.';
-  if (msg.includes('signup_no_session')) return 'Revisa tu email y confirma tu cuenta para continuar';
-  if (msg.includes('rate limit') || msg.includes('too many')) return 'Demasiados intentos. Espera un momento.';
-  if (msg.includes('network') || msg.includes('fetch') || msg.includes('Failed')) return 'Error de conexión. Revisa tu internet.';
-  return msg;
+    return 'No se pudo completar la acción. Abre la consola del navegador (F12) para ver el detalle.';
+  const m = msg.toLowerCase();
+  if (m.includes('database error') || m.includes('error saving new user') || msg.includes('HTTP 500'))
+    return 'Error de base de datos al crear el usuario. Suele ser el trigger de categorías: vuelve a ejecutar supabase_setup.sql en el SQL Editor.';
+  if (m.includes('invalid login') || m.includes('invalid_credentials')) return 'Email o contraseña incorrectos';
+  if (m.includes('already registered') || m.includes('user already registered')) return 'Este email ya está registrado. Inicia sesión.';
+  if (m.includes('email not confirmed') || m.includes('email_not_confirmed')) return 'Debes confirmar tu email antes de entrar';
+  if (m.includes('password should') || m.includes('weak')) return 'La contraseña debe tener al menos 6 caracteres';
+  if (m.includes('signups are disabled') || m.includes('signups not allowed')) return 'El registro está desactivado. Actívalo en Authentication → Providers → Email.';
+  if (m.includes('signup_no_session')) return 'Revisa tu email y confirma tu cuenta para continuar';
+  if (m.includes('rate limit') || m.includes('too many')) return 'Demasiados intentos. Espera un momento.';
+  if (m.includes('captcha')) return 'Hay un CAPTCHA activo en Supabase. Desactívalo en Authentication → Settings.';
+  if (m.includes('network') || m.includes('fetch') || m.includes('failed to fetch')) return 'Error de conexión. Revisa tu internet o la URL de Supabase.';
+  return msg;   // muestra el mensaje real (ya trae HTTP status) en vez de ocultarlo
 }
