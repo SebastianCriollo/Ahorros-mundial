@@ -113,8 +113,11 @@ CREATE POLICY "metas: eliminar las propias"
 -- ============================================================
 
 -- Función que crea categorías iniciales para cada nuevo usuario
+-- SET search_path fijo evita errores intermitentes al resolver el esquema
+-- de "categorias" en el contexto de SECURITY DEFINER (causaba 500 en signup)
 CREATE OR REPLACE FUNCTION crear_categorias_iniciales()
-RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public AS $$
 BEGIN
   INSERT INTO categorias (usuario_id, nombre) VALUES
     (NEW.id, 'Comida'),
