@@ -1,4 +1,4 @@
-# 💰 Ahorros Mundial
+# 💰 Gestor de Ahorros y Gastos
 
 Aplicación web de seguimiento de finanzas personales. Registra ingresos y gastos, visualiza tu ahorro mensual y fija metas.
 

@@ -1,5 +1,5 @@
 -- ============================================================
---  MIGRACIÓN — Funciones nuevas (Ahorros Mundial)
+--  MIGRACIÓN — Funciones nuevas (Gestor de Ahorros y Gastos)
 --  Ejecuta esto en: Supabase Dashboard → SQL Editor → New query
 --  Es seguro ejecutarlo aunque ya tengas las tablas base.
 -- ============================================================

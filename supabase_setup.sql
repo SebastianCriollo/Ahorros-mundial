@@ -1,5 +1,5 @@
 -- ============================================================
---  SCRIPT DE CONFIGURACIÓN SUPABASE — Ahorros Mundial
+--  SCRIPT DE CONFIGURACIÓN SUPABASE — Gestor de Ahorros y Gastos
 --  Ejecuta esto en: Supabase Dashboard → SQL Editor → New query
 -- ============================================================
 
